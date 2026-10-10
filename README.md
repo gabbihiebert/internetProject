@@ -24,7 +24,10 @@ Our team is using **Track B: Reliable Transfer**.
 
 ## Project Structure
 
-The project structure will be added as development begins.
+* `reliable.py`: Track B stop-and-wait sender and receiver
+* `test_reliable.py`: tests for the reliable transfer code
+
+More files will be added as development continues.
 
 ## Requirements
 
@@ -46,4 +49,8 @@ All team members will participate in testing, integration, experiments, and code
 
 ## Running the Project
 
-Run instructions will be added as the project is developed.
+Full run instructions will be added as the project is developed.
+
+To run the reliable transfer tests:
+
+    python test_reliable.py
