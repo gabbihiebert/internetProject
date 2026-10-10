@@ -1,0 +1,3 @@
+# Python leftover files that should not be committed
+__pycache__/
+*.pyc
