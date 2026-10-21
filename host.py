@@ -98,6 +98,14 @@ def run_reliable(node, dst_vaddr: str, count: int):
                   f"retx={result.retransmissions} elapsed={result.elapsed:.2f}s "
                   f"reason={result.reason}")
 
+def run_reliable_receiver(node):
+    # I wait for numbered messages and keep each one once, in order
+    from reliable import ReliableReceiver
+    network = NetworkAdapter(node, None)
+    receiver = ReliableReceiver(network, linger=2.0, idle_timeout=30.0)
+    receiver.run()
+    node.log.info(f"RELIABLE receiver done complete={receiver.complete} "
+                  f"delivered={len(receiver.delivered)} duplicates={receiver.duplicates}")
 
 def main():
     # Entry point: choose echo / probe / reliable mode from CLI args.
@@ -105,7 +113,7 @@ def main():
     ap.add_argument("--config", required=True)
     ap.add_argument("--name", required=True)
     ap.add_argument("--seed", type=int, default=None)
-    ap.add_argument("--mode", choices=["echo", "probe", "reliable"], required=True)
+    ap.add_argument("--mode", choices=["echo", "probe", "reliable", "reliable-recv"], required=True)
     ap.add_argument("--dst", help="destination virtual address (probe/reliable)")
     ap.add_argument("--count", type=int, default=5)
     ap.add_argument("--interval", type=float, default=1.0)
@@ -135,6 +143,8 @@ def main():
     elif args.mode == "reliable":
         run_reliable(node, args.dst, args.count)
 
+    elif args.mode == "reliable-recv":
+        run_reliable_receiver(node)
 
 if __name__ == "__main__":
     main()
