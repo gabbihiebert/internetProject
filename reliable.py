@@ -26,9 +26,9 @@ from collections import namedtuple
 
 log = logging.getLogger("reliable")
 
-# temp message types for the mini internet (may change to suit teammates code)
-MSG_RDATA = 0x10
-MSG_RACK = 0x11
+# my message types are text, because packet.py turns every type into text when it sends
+MSG_RDATA = "RDATA"
+MSG_RACK = "RACK"
 
 # reliable transfer information inside each message
 # run_id (4 bytes), seq (4 bytes), flags (1 byte) -> 9 bytes, big endian
