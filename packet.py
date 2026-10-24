@@ -124,10 +124,6 @@ def validate(packet: Packet) -> bool: # Returns True if the packet is valid, Fal
     if not packet.msg_type:
         log.error("Invalid packet: msg_type is empty")
         return False
-    if not packet.payload:
-        log.error("Invalid packet: payload is empty")
-        return False
-
     # Range and format checks
     if not 1 <= packet.hop_limit <= MAX_HOP_LIMIT:
         log.error("Invalid packet: hop_limit out of range")

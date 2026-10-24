@@ -41,11 +41,11 @@ class TestForwarding(unittest.TestCase):
     def test_forward_decreases_hop_limit(self):
         next_hop, forwarded = prepare_forward(self.packet, self.table)
 
-        # Make sure that forwarding packet decreases hop limit by 1
+        # Make sure that next hop and forwarded packet are correct
         self.assertEqual(next_hop, "RouterB")
-        # Make sure that the original packet's hop limit remains unchanged
+        # Make sure that forwarded packet's hop limit is decreased by 1
         self.assertEqual(forwarded.hop_limit, 7)
-        # Make sure that the original packet's hop limit is not affected by forwarding
+        # Make sure that original packet's hop limit remains unchanged
         self.assertEqual(self.packet.hop_limit, 8)
 
     def test_forward_fails_when_hop_limit_is_one(self):
