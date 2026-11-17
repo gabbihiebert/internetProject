@@ -228,3 +228,89 @@ class ReliableReceiver:
         # send a 'got it' message for message number seq
         self.network.send(dest, MSG_RACK, seq, encode(run_id, seq, 0))
         log.info("event=send run=%s type=ACK seq=%d", run_id, seq)
+
+
+
+class BestEffortSender:
+    """
+    The "no promises" sender. I only use it as my comparison baseline.
+
+    It sends every message exactly ONCE, never waits for an ACK, and never
+    resends. If the network loses a message, it is just gone.
+
+    """
+
+    def __init__(self, network, min_gap=0.0):
+        self.network = network # how we send (teammates' code)
+        self.min_gap = min_gap # smallest pause between sends (speed limit)
+        self._last_send_time = float("-inf") # when we last sent (never, at first)
+
+    def send_all(self, dest, run_id, messages):
+        # send every message in the list one time, as fast as the speed limit allows
+        start = time.monotonic()
+        total = len(messages)
+
+        for seq, data in enumerate(messages):
+            # mark the final message, same as the reliable sender does
+            flags = FLAG_LAST if seq == total - 1 else 0
+            # speed limit: if we sent too recently, pause until enough time passed
+            pause = self._last_send_time + self.min_gap - time.monotonic()
+            if pause > 0:
+                time.sleep(pause)
+            self._last_send_time = time.monotonic()
+            self.network.send(dest, MSG_RDATA, seq, encode(run_id, seq, flags, data))
+            log.info("event=send run=%s type=DATA seq=%d attempt=1", run_id, seq)
+
+        # no ACKs and no resends here, so those numbers are always 0
+        return SendResult(True, 0, total, total, 0, time.monotonic() - start, "best effort, sent once")
+
+
+class BestEffortReceiver:
+    """
+    The "no promises" receiver, my comparison baseline.
+
+    It keeps each message it sees, sends NO ACKs, and stops listening after
+    a fixed time (observe_time). That way it never waits forever for
+    messages that were lost.
+
+    """
+
+    def __init__(self, network, observe_time=5.0):
+        self.network = network
+        self.observe_time = observe_time # seconds to listen, then stop
+        self.delivered = [] # the kept messages, as (seq, data), in the order they arrived
+
+    def run(self):
+        # listen until the fixed observation time runs out
+        my_run_id = None # the batch we're accepting (set by the first message)
+        seen = set() # message numbers we already kept
+        stop_time = time.monotonic() + self.observe_time
+
+        while True:
+            time_left = stop_time - time.monotonic()
+            # time is up: stop, even if some messages never showed up
+            if time_left <= 0:
+                return
+
+            # wait for a message, skip if nothing came or it is not a data message
+            packet = self.network.recv(time_left)
+            if packet is None or packet.msg_type != MSG_RDATA:
+                continue
+
+            # open it, if it's garbage, note it and ignore it
+            info = decode(packet.payload)
+            if info is None:
+                log.warning("event=drop reason=malformed_reliable_payload")
+                continue
+            run_id, seq, flags, data = info
+
+            # the first batch we see becomes "our" batch, ignore other batches
+            if my_run_id is None:
+                my_run_id = run_id
+            if run_id != my_run_id or seq in seen:
+                continue
+
+            # keep it (no ACK, because best effort makes no promises)
+            seen.add(seq)
+            self.delivered.append((seq, data))
+            log.info("event=deliver run=%s seq=%d", run_id, seq)
