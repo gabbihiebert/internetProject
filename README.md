@@ -34,6 +34,7 @@ Our team is using **Track B: Reliable Transfer**.
 * `test_reliable.py`: tests for the reliable transfer code
 * `test_packet.py`: tests for the packet format code
 * `test_forwarding.py`: tests for the forwarding code
+* `experiment_reliable.py`: best effort vs stop-and-wait comparison (practice run on a pretend network)
 
 More files will be added as development continues.
 
@@ -88,6 +89,9 @@ Stop all the routers (Ctrl+C in each), then restart all four with a different co
     python test_packet.py
     python test_forwarding.py
     python test_reliable.py
+
+## Experiment
+    python experiment_reliable.py
 
 ## Known Issues
 * host.py probe loop can mark a probe as timed out if an older echo arrives late
