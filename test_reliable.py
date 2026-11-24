@@ -17,7 +17,7 @@ import queue
 import threading
 import unittest
 
-from reliable import (ReliableSender, ReliableReceiver, Packet, encode, decode, MSG_RDATA, MSG_RACK, MAX_DATA)
+from reliable import (ReliableSender, ReliableReceiver, BestEffortSender, BestEffortReceiver, Packet, encode, decode, MSG_RDATA, MSG_RACK, MAX_DATA)
 
 
 class FakeNet:
@@ -61,6 +61,24 @@ def run_transfer(messages, drops=None, lose_all=False):
     sender = ReliableSender(sender_net, timeout=0.05, max_retries=3)
 
     # the receiver listens in the background while the sender sends
+    thread = threading.Thread(target=receiver.run)
+    thread.start()
+    result = sender.send_all("B", 1, messages)
+    thread.join(timeout=5)
+    return result, receiver
+
+def run_best_effort(messages, drops=None):
+    # same idea as run_transfer, but with the "no promises" sender and receiver
+    drops = drops if drops is not None else []
+    a_to_b = queue.Queue() # messages going from sender to receiver
+    b_to_a = queue.Queue() # messages going from receiver to sender
+    sender_net = FakeNet("A", b_to_a, a_to_b, drops)
+    receiver_net = FakeNet("B", a_to_b, b_to_a, drops)
+
+    # short listening time so my tests run fast
+    receiver = BestEffortReceiver(receiver_net, observe_time=0.3)
+    sender = BestEffortSender(sender_net)
+
     thread = threading.Thread(target=receiver.run)
     thread.start()
     result = sender.send_all("B", 1, messages)
@@ -114,6 +132,19 @@ class TestReliable(unittest.TestCase):
         self.assertIsNone(decode(b"abc"))
         with self.assertRaises(ValueError):
             encode(1, 0, 0, b"x" * (MAX_DATA + 1))
+
+    def test_best_effort_no_loss(self):
+        # nothing lost: best effort delivers everything, still with no resends
+        result, receiver = run_best_effort(self.msgs)
+        self.assertEqual([d for _, d in receiver.delivered], self.msgs)
+        self.assertEqual(result.retransmissions, 0)
+
+    def test_best_effort_loses_a_message(self):
+        # I lose data message 2 once: best effort never resends, so it stays missing
+        result, receiver = run_best_effort(self.msgs, drops=[(MSG_RDATA, 2)])
+        self.assertEqual(len(receiver.delivered), len(self.msgs) - 1)
+        self.assertNotIn(2, [seq for seq, _ in receiver.delivered])
+        self.assertEqual(result.retransmissions, 0)
 
 
 if __name__ == "__main__":
